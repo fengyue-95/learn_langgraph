@@ -2,7 +2,11 @@
 from dotenv import load_dotenv
 from langchain.tools import tool
 from langchain.chat_models import init_chat_model
+from langfuse.langchain import CallbackHandler
 load_dotenv()
+
+# Initialize Langfuse callback handler
+langfuse_handler = CallbackHandler()
 
 model=init_chat_model(
     model="deepseek-chat",
@@ -75,7 +79,8 @@ def llm_call(state: dict):
                         content="You are a helpful assistant tasked with performing arithmetic on a set of inputs."
                     )
                 ]
-                + state["messages"]
+                + state["messages"],
+                config={"callbacks": [langfuse_handler]}
             )
         ],
         "llm_calls": state.get('llm_calls', 0) + 1
@@ -145,7 +150,12 @@ with open("agent_graph.png", "wb") as f:
 
 # Invoke
 from langchain.messages import HumanMessage
+import time
+
 messages = [HumanMessage(content="Add 3 and 4.")]
-messages = agent.invoke({"messages": messages})
+messages = agent.invoke({"messages": messages}, config={"callbacks": [langfuse_handler]})
 for m in messages["messages"]:
     m.pretty_print()
+
+# Wait a bit for Langfuse to send traces in background
+time.sleep(2)
